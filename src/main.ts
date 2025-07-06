@@ -3,9 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    cors: false,
-  });
+  const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
@@ -15,6 +13,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  // Enable CORS for your React frontend
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+  });
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

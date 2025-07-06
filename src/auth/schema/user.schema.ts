@@ -4,6 +4,11 @@ import { isEmail } from 'validator';
 
 export type UserDocument = HydratedDocument<User>;
 
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
+
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, minlength: 3, trim: true })
@@ -24,8 +29,8 @@ export class User {
   @Prop({ required: true, trim: true, minlength: 6 })
   password: string;
 
-  @Prop({ default: false })
-  isAdmin: boolean;
+  @Prop({ enum: UserRole, default: UserRole.USER })
+  role: UserRole;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

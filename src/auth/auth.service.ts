@@ -48,6 +48,7 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
+  // Register
   async register(registerDto: RegisterDto): Promise<RegisterResponse> {
     // Check if user is already registered
     const existingUser = await this.userModel
@@ -66,6 +67,39 @@ export class AuthService {
       password: hashedPassword,
       username: registerDto.username,
       role: UserRole.USER,
+    });
+    // Save user
+    const savedUser = await newUser.save();
+    return {
+      message: 'Registration successful',
+      user: {
+        _id: savedUser._id,
+        email: savedUser.email,
+        username: savedUser.username,
+        role: savedUser.role,
+      },
+    };
+  }
+
+  // Register Admin
+  async registerAdmin(registerDto: RegisterDto): Promise<RegisterResponse> {
+    // Check if user is already registered
+    const existingUser = await this.userModel
+      .findOne({ email: registerDto.email })
+      .exec();
+    if (existingUser) {
+      throw new ConflictException(
+        `Admin with email ${registerDto.email} already exists. Please login`,
+      );
+    }
+    // Hash plain text password
+    const hashedPassword = await this.hashPassword(registerDto.password);
+    // Create new user document
+    const newUser = new this.userModel({
+      email: registerDto.email,
+      password: hashedPassword,
+      username: registerDto.username,
+      role: UserRole.ADMIN,
     });
     // Save user
     const savedUser = await newUser.save();
@@ -130,12 +164,18 @@ export class AuthService {
     }
   }
 
+  // Get user by id
   async getUserById(id: string): Promise<SafeUser> {
     const existingUser = await this.userModel.findById(id).exec();
     if (!existingUser) {
       throw new UnauthorizedException('Invalid token');
     }
-    return existingUser;
+    return {
+      _id: existingUser._id,
+      email: existingUser.email,
+      role: existingUser.role,
+      username: existingUser.username,
+    };
   }
 
   private hashPassword(password: string): Promise<string> {

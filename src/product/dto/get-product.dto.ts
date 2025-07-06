@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsOptional, IsPositive } from 'class-validator';
 
-export class GetProductQueryDto {
+export class GetProductDto {
   @IsOptional()
   @Type(() => Number)
   @IsPositive({ message: 'Page must be positive' })

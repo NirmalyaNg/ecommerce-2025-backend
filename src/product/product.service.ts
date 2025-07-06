@@ -3,12 +3,14 @@ import { Model } from 'mongoose';
 import { Product } from './schema/product.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
-import { GetProductQueryDto } from './dto/get-product.dto';
+import { GetProductDto } from './dto/get-product.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<Product>,
+    private configService: ConfigService,
   ) {}
 
   // Create Product
@@ -29,5 +31,40 @@ export class ProductService {
       stock: createProductDto?.stock ?? 1,
     });
     return newProduct.save();
+  }
+
+  // Get Paginated Products
+  async getPaginatedProducts(getProductDto: GetProductDto) {
+    const { limit: dtoLimit, page: dtoPage } = getProductDto;
+
+    const limit =
+      dtoLimit ??
+      this.configService.get<number>('DEFAULT_PRODUCT_PAGE_LIMIT') ??
+      10;
+    const page = dtoPage ?? 1;
+    const skip = (page - 1) * limit;
+
+    const productsQuery = this.productModel
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip);
+
+    const [products, totalProducts] = await Promise.all([
+      productsQuery.exec(),
+      this.productModel.countDocuments().exec(),
+    ]);
+
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    return {
+      products,
+      pagination: {
+        page,
+        total: totalProducts,
+        totalPages,
+        limit,
+      },
+    };
   }
 }

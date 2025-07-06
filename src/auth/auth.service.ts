@@ -130,6 +130,14 @@ export class AuthService {
     }
   }
 
+  async getUserById(id: string): Promise<SafeUser> {
+    const existingUser = await this.userModel.findById(id).exec();
+    if (!existingUser) {
+      throw new UnauthorizedException('Invalid token');
+    }
+    return existingUser;
+  }
+
   private hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 8);
   }

@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cart, CartDocument } from './schema/cart.schema';
 import { Model, Types } from 'mongoose';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import * as crypto from 'crypto';
+import { Product } from 'src/product/schema/product.schema';
 
 @Injectable()
 export class CartService {
@@ -11,6 +12,7 @@ export class CartService {
     @InjectModel(Cart.name) private readonly cartModel: Model<CartDocument>,
   ) {}
 
+  // Add to Cart
   async addToCart(addToCartDto: AddToCartDto): Promise<Cart> {
     const { cartId, productId, quantity } = addToCartDto;
     let cart: CartDocument | null = null;
@@ -45,6 +47,21 @@ export class CartService {
     });
 
     return newCart.save();
+  }
+
+  // Get Cart By id
+  async getCartById(cartId: string): Promise<Cart> {
+    const cart = await this.cartModel
+      .findOne({ cartId })
+      .populate({
+        path: 'items.product',
+        model: Product.name,
+      })
+      .lean();
+    if (!cart) {
+      throw new NotFoundException(`Cart with id: ${cartId} not found!`);
+    }
+    return cart;
   }
 
   private generateCartId() {

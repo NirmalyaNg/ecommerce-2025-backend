@@ -1,6 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
-import { Cart } from './schema/cart.schema';
+import { Cart, CartDocument } from './schema/cart.schema';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 
 @Controller('cart')
@@ -11,5 +19,10 @@ export class CartController {
   @HttpCode(HttpStatus.CREATED)
   addToCart(@Body() addToCartDto: AddToCartDto): Promise<Cart> {
     return this.cartService.addToCart(addToCartDto);
+  }
+
+  @Get(':id')
+  getCartById(@Param('id') cartId: string) {
+    return this.cartService.getCartById(cartId);
   }
 }

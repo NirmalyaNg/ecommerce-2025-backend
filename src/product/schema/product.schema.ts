@@ -17,7 +17,7 @@ export class Product {
   @Prop({ required: true })
   price: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   slug: string;
 
   @Prop({ default: 0 })

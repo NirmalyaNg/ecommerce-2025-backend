@@ -16,13 +16,9 @@ export class ProductService {
   // Create Product
   async create(createProductDto: CreateProductDto): Promise<Product> {
     // Check if product already exists to provided slug
-    const existingProduct = await this.productModel
-      .findOne({ slug: createProductDto.slug })
-      .exec();
+    const existingProduct = await this.productModel.findOne({ slug: createProductDto.slug }).exec();
     if (existingProduct) {
-      throw new ConflictException(
-        `Product with slug ${createProductDto.slug} already exists`,
-      );
+      throw new ConflictException(`Product with slug ${createProductDto.slug} already exists`);
     }
     const newProduct = new this.productModel({
       ...createProductDto,
@@ -37,18 +33,11 @@ export class ProductService {
   async getPaginatedProducts(getProductDto: GetProductDto) {
     const { limit: dtoLimit, page: dtoPage } = getProductDto;
 
-    const limit =
-      dtoLimit ??
-      this.configService.get<number>('DEFAULT_PRODUCT_PAGE_LIMIT') ??
-      10;
+    const limit = dtoLimit ?? this.configService.get<number>('DEFAULT_PRODUCT_PAGE_LIMIT') ?? 10;
     const page = dtoPage ?? 1;
     const skip = (page - 1) * limit;
 
-    const productsQuery = this.productModel
-      .find()
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip(skip);
+    const productsQuery = this.productModel.find().sort({ createdAt: -1 }).limit(limit).skip(skip);
 
     const [products, totalProducts] = await Promise.all([
       productsQuery.exec(),

@@ -5,9 +5,7 @@ import { Model } from 'mongoose';
 
 @Injectable()
 export class CategoryService {
-  constructor(
-    @InjectModel(Category.name) private readonly categoryModel: Model<Category>,
-  ) {}
+  constructor(@InjectModel(Category.name) private readonly categoryModel: Model<Category>) {}
 
   async findAll(): Promise<Category[]> {
     return this.categoryModel.find().exec();

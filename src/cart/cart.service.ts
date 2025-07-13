@@ -8,9 +8,7 @@ import { Product } from 'src/product/schema/product.schema';
 
 @Injectable()
 export class CartService {
-  constructor(
-    @InjectModel(Cart.name) private readonly cartModel: Model<CartDocument>,
-  ) {}
+  constructor(@InjectModel(Cart.name) private readonly cartModel: Model<CartDocument>) {}
 
   // Add to Cart
   async addToCart(addToCartDto: AddToCartDto): Promise<Cart> {
@@ -20,9 +18,7 @@ export class CartService {
     if (cartId) {
       cart = await this.cartModel.findOne({ cartId });
       if (cart) {
-        const existingItem = cart.items.find(
-          (item) => item.product?.toString() === productId,
-        );
+        const existingItem = cart.items.find((item) => item.product?.toString() === productId);
 
         if (existingItem) {
           existingItem.quantity += quantity;
@@ -40,9 +36,7 @@ export class CartService {
 
     const newCart = new this.cartModel({
       cartId: this.generateCartId(),
-      items: [
-        { product: new Types.ObjectId(productId), quantity: quantity ?? 1 },
-      ],
+      items: [{ product: new Types.ObjectId(productId), quantity: quantity ?? 1 }],
       totalQuantity: quantity ?? 1,
     });
 

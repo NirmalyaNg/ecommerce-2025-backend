@@ -25,13 +25,14 @@ export type RegisterResponse = {
 
 export type TokensResponse = {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
 };
 
 export type LoginResponse = {
   message: string;
   user: SafeUser;
-  tokens: TokensResponse;
+  accessToken: string;
+  refreshToken: string;
 };
 
 export type JwtPayload = {
@@ -138,7 +139,8 @@ export class AuthService {
         username: existingUser.username,
         role: existingUser.role,
       },
-      tokens,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     };
   }
 

@@ -1,19 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-  UnauthorizedException,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  AuthService,
-  LoginResponse,
-  RegisterResponse,
-  SafeUser,
-} from './auth.service';
+import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { AuthService, LoginResponse, RegisterResponse, SafeUser } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -33,10 +19,7 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<{ accessToken: string }> {
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<{ accessToken: string }> {
     const refreshToken = req.cookies['refreshToken'];
     // Check if refreshToken is present in cookies
     if (!refreshToken) {
@@ -45,8 +28,7 @@ export class AuthController {
     }
     // Get new accessToken and refreshToken
     const tokens = await this.authService.refresh(refreshToken);
-    const { httpOnly, maxAge, path, sameSite, secure } =
-      this.getCookieOptions();
+    const { httpOnly, maxAge, path, sameSite, secure } = this.getCookieOptions();
     res.cookie('refreshToken', refreshToken, {
       httpOnly,
       maxAge,
@@ -71,10 +53,8 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<Omit<LoginResponse, 'refreshToken'>> {
-    const { refreshToken, ...loginResponseWithoutRefreshToken } =
-      await this.authService.login(loginDto);
-    const { httpOnly, maxAge, path, sameSite, secure } =
-      this.getCookieOptions();
+    const { refreshToken, ...loginResponseWithoutRefreshToken } = await this.authService.login(loginDto);
+    const { httpOnly, maxAge, path, sameSite, secure } = this.getCookieOptions();
     res.cookie('refreshToken', refreshToken, {
       httpOnly,
       maxAge,

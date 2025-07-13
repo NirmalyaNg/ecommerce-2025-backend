@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { User, UserDocument, UserRole } from './schema/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -13,10 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 
-export type SafeUser = Pick<
-  UserDocument,
-  '_id' | 'email' | 'username' | 'role'
->;
+export type SafeUser = Pick<UserDocument, '_id' | 'email' | 'username' | 'role'>;
 
 export type RegisterResponse = {
   message: string;
@@ -52,13 +44,9 @@ export class AuthService {
   // Register
   async register(registerDto: RegisterDto): Promise<RegisterResponse> {
     // Check if user is already registered
-    const existingUser = await this.userModel
-      .findOne({ email: registerDto.email })
-      .exec();
+    const existingUser = await this.userModel.findOne({ email: registerDto.email }).exec();
     if (existingUser) {
-      throw new ConflictException(
-        `User with email ${registerDto.email} already exists. Please login`,
-      );
+      throw new ConflictException(`User with email ${registerDto.email} already exists. Please login`);
     }
     // Hash plain text password
     const hashedPassword = await this.hashPassword(registerDto.password);
@@ -85,13 +73,9 @@ export class AuthService {
   // Register Admin
   async registerAdmin(registerDto: RegisterDto): Promise<RegisterResponse> {
     // Check if user is already registered
-    const existingUser = await this.userModel
-      .findOne({ email: registerDto.email })
-      .exec();
+    const existingUser = await this.userModel.findOne({ email: registerDto.email }).exec();
     if (existingUser) {
-      throw new ConflictException(
-        `Admin with email ${registerDto.email} already exists. Please login`,
-      );
+      throw new ConflictException(`Admin with email ${registerDto.email} already exists. Please login`);
     }
     // Hash plain text password
     const hashedPassword = await this.hashPassword(registerDto.password);
@@ -118,9 +102,7 @@ export class AuthService {
   // Login
   async login(loginDto: LoginDto): Promise<LoginResponse> {
     // Check if user exists
-    const existingUser = await this.userModel
-      .findOne({ email: loginDto.email })
-      .exec();
+    const existingUser = await this.userModel.findOne({ email: loginDto.email }).exec();
     if (!existingUser) {
       throw new NotFoundException(`User is not registered`);
     }
@@ -148,12 +130,9 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<TokensResponse> {
     try {
       // Verify token
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(
-        refreshToken,
-        {
-          secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
-        },
-      );
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      });
       // Check for user
       const user = await this.userModel.findById(payload.sub);
       if (!user) {
@@ -184,10 +163,7 @@ export class AuthService {
     return bcrypt.hash(password, 8);
   }
 
-  private verify(
-    plainPassword: string,
-    hashedPassword: string,
-  ): Promise<boolean> {
+  private verify(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
 

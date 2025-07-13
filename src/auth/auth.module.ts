@@ -8,10 +8,7 @@ import { JwtAuthStrategy } from './strategy/jwt-auth.strategy';
 import { RolesGuard } from './guard/role.guard';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-    JwtModule.register({}),
-  ],
+  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]), JwtModule.register({})],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthStrategy, RolesGuard],
 })

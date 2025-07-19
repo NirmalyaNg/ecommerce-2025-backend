@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { User, UserDocument, UserRole } from './schema/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -104,12 +104,12 @@ export class AuthService {
     // Check if user exists
     const existingUser = await this.userModel.findOne({ email: loginDto.email }).exec();
     if (!existingUser) {
-      throw new NotFoundException(`User is not registered`);
+      throw new BadRequestException(`Invalid email/password`);
     }
     // Verify password
     const isMatch = await this.verify(loginDto.password, existingUser.password);
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid email/password');
+      throw new BadRequestException('Invalid email/password');
     }
     // Generate tokens
     const tokens = this.generateTokens(existingUser);

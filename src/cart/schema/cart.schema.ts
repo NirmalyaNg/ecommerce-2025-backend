@@ -22,10 +22,7 @@ export class Cart {
     ],
     _id: false,
   })
-  items: {
-    product: Types.ObjectId;
-    quantity: number;
-  }[];
+  items: { product: Types.ObjectId; quantity: number }[];
 
   @Prop({ type: Number, default: 0 })
   totalPrice: number;

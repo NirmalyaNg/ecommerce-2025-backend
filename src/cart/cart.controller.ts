@@ -1,15 +1,22 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { CartService } from './cart.service';
-import { Cart, CartDocument } from './schema/cart.schema';
+import { Cart } from './schema/cart.schema';
 import { AddToCartDto } from './dto/add-to-cart.dto';
+import { OptionalAuthGuard } from 'src/auth/guard/optional-auth.guard';
+import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
+import { SafeUser } from 'src/auth/auth.service';
 
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   @Post()
+  @UseGuards(OptionalAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  addToCart(@Body() addToCartDto: AddToCartDto): Promise<Cart> {
+  addToCart(@Body() addToCartDto: AddToCartDto, @CurrentUser() user: SafeUser): Promise<Cart> {
+    if (user) {
+      return this.cartService.addToCartForUser(addToCartDto, user);
+    }
     return this.cartService.addToCart(addToCartDto);
   }
 

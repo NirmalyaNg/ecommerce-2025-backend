@@ -7,7 +7,7 @@ import { Roles } from './decorator/roles.decorator';
 import { UserRole } from './schema/user.schema';
 import { RolesGuard } from './guard/role.guard';
 import { CurrentUser } from './decorator/current-user.decorator';
-import { Request, Response } from 'express';
+import { CookieOptions, Request, Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -71,13 +71,7 @@ export class AuthController {
     return user;
   }
 
-  private getCookieOptions(): {
-    httpOnly: boolean;
-    secure: boolean;
-    sameSite: 'lax' | 'strict';
-    path: string;
-    maxAge: number;
-  } {
+  private getCookieOptions(): CookieOptions {
     return {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // only allow cookie to be sent over https in production

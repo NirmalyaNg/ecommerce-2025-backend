@@ -17,16 +17,13 @@ export class CartService {
     let cart: CartDocument | null = null;
 
     if (cartId) {
-      cart = await this.cartModel.findOne({ cartId });
+      cart = await this.cartModel.findOne({ cartId, isActive: true });
       if (cart) {
         const existingItem = cart.items.find((item) => item.product?.toString() === productId);
         if (existingItem) {
           existingItem.quantity += quantity;
         } else {
-          cart.items.push({
-            product: new Types.ObjectId(productId),
-            quantity,
-          });
+          cart.items.push({ product: new Types.ObjectId(productId), quantity });
         }
         cart.totalQuantity += quantity;
         return cart.save();
@@ -42,7 +39,7 @@ export class CartService {
   }
 
   // Add to cart for logged-in user with anonymous cart merge
-  async addToCartForUser(addToCartDto: AddToCartDto, user: SafeUser) {
+  async addToCartForUser(addToCartDto: AddToCartDto, user: SafeUser): Promise<Cart> {
     const { productId, quantity = 1, cartId } = addToCartDto;
 
     // Explicit type: CartDocument | null
@@ -71,7 +68,7 @@ export class CartService {
       await anonymousCart.save();
     }
 
-    // If user cart is not present and anonymous cart is present, make associate anonymous cart to user
+    // If user cart is not present and anonymous cart is present, associate anonymous cart to user
     if (!userCart && anonymousCart) {
       anonymousCart.userId = user._id;
       userCart = anonymousCart;
@@ -114,6 +111,66 @@ export class CartService {
       throw new NotFoundException(`Cart with id: ${cartId} not found!`);
     }
     return cart;
+  }
+
+  async getCurrentUserCart(cartId: string, user: SafeUser): Promise<Cart | null> {
+    const session = await this.cartModel.startSession();
+    session.startTransaction();
+
+    try {
+      let userCart = await this.cartModel.findOne({ userId: user._id, isActive: true }).session(session);
+      let anonymousCart: CartDocument | null = null;
+
+      if (cartId) {
+        anonymousCart = await this.cartModel.findOne({ cartId, isActive: true }).session(session);
+      }
+
+      // Case 1: Merge anonymous cart into user cart
+      if (userCart && anonymousCart && !userCart._id.equals(anonymousCart._id)) {
+        anonymousCart.items?.forEach((anonItem) => {
+          const existingItem = userCart.items?.find(
+            (cartItem) => cartItem.product?.toString() === anonItem.product?.toString(),
+          );
+          if (existingItem) {
+            existingItem.quantity += anonItem.quantity;
+          } else {
+            userCart.items.push({ product: anonItem.product, quantity: anonItem.quantity });
+          }
+          userCart.totalQuantity = (userCart.totalQuantity || 0) + anonItem.quantity;
+        });
+
+        anonymousCart.isActive = false;
+        await anonymousCart.save({ session });
+        await userCart.save({ session });
+
+        await session.commitTransaction();
+        return userCart.toObject();
+      }
+
+      // Case 2: No userCart but anonymousCart exists → assign it to the user
+      if (!userCart && anonymousCart) {
+        anonymousCart.userId = user._id;
+        await anonymousCart.save({ session });
+
+        await session.commitTransaction();
+        return anonymousCart.toObject();
+      }
+
+      // Case 3: Only userCart exists
+      if (userCart) {
+        await session.commitTransaction();
+        return userCart.toObject();
+      }
+
+      // Case 4: No carts found
+      await session.commitTransaction();
+      return null;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   private generateCartId() {

@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { Cart } from './schema/cart.schema';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { OptionalAuthGuard } from 'src/auth/guard/optional-auth.guard';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { SafeUser } from 'src/auth/auth.service';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('cart')
 export class CartController {
@@ -18,6 +19,12 @@ export class CartController {
       return this.cartService.addToCartForUser(addToCartDto, user);
     }
     return this.cartService.addToCart(addToCartDto);
+  }
+
+  @Get('current')
+  @UseGuards(AuthGuard('jwt'))
+  getCurrentUserCart(@Query('cartId') cartId: string, @CurrentUser() user: SafeUser) {
+    return this.cartService.getCurrentUserCart(cartId, user);
   }
 
   @Get(':id')

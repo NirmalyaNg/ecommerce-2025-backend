@@ -118,11 +118,23 @@ export class CartService {
     session.startTransaction();
 
     try {
-      let userCart = await this.cartModel.findOne({ userId: user._id, isActive: true }).session(session);
+      let userCart = await this.cartModel
+        .findOne({ userId: user._id, isActive: true })
+        .populate({
+          path: 'items.product',
+          model: Product.name,
+        })
+        .session(session);
       let anonymousCart: CartDocument | null = null;
 
       if (cartId) {
-        anonymousCart = await this.cartModel.findOne({ cartId, isActive: true }).session(session);
+        anonymousCart = await this.cartModel
+          .findOne({ cartId, isActive: true })
+          .populate({
+            path: 'items.product',
+            model: Product.name,
+          })
+          .session(session);
       }
 
       // Case 1: Merge anonymous cart into user cart

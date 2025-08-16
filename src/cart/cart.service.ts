@@ -6,6 +6,7 @@ import { AddToCartDto } from './dto/add-to-cart.dto';
 import * as crypto from 'crypto';
 import { Product } from 'src/product/schema/product.schema';
 import { SafeUser } from 'src/auth/auth.service';
+import { RemoveFromCartDto } from './dto/remove-from-cart.dto';
 
 @Injectable()
 export class CartService {
@@ -26,7 +27,10 @@ export class CartService {
           cart.items.push({ product: new Types.ObjectId(productId), quantity });
         }
         cart.totalQuantity += quantity;
-        return cart.save();
+        return (await cart.save()).populate({
+          path: 'items.product',
+          model: Product.name,
+        });
       }
     }
     // Create new cart if not found or no cartId provided
@@ -35,7 +39,10 @@ export class CartService {
       items: [{ product: new Types.ObjectId(productId), quantity }],
       totalQuantity: quantity,
     });
-    return newCart.save();
+    return (await newCart.save()).populate({
+      path: 'items.product',
+      model: Product.name,
+    });
   }
 
   // Add to cart for logged-in user with anonymous cart merge
@@ -82,7 +89,14 @@ export class CartService {
         items: [{ product: new Types.ObjectId(productId), quantity }],
         totalQuantity: quantity,
       });
-      return (await userCart.save()).toObject();
+
+      const savedCart = await userCart.save();
+      await savedCart.populate({
+        path: 'items.product',
+        model: Product.name,
+      });
+
+      return savedCart.toObject();
     }
 
     // If only user cart is present, add item is not already exists or else increase quantity
@@ -93,9 +107,14 @@ export class CartService {
     } else {
       userCart.items.push({ product: new Types.ObjectId(productId), quantity });
     }
-
     userCart.totalQuantity += quantity;
-    return (await userCart.save()).toObject();
+
+    const savedCart = await userCart.save();
+    await savedCart.populate({
+      path: 'items.product',
+      model: Product.name,
+    });
+    return savedCart.toObject();
   }
 
   // Get Cart By id
@@ -183,6 +202,38 @@ export class CartService {
     } finally {
       session.endSession();
     }
+  }
+
+  async removeFromCart(removeFromCartDto: RemoveFromCartDto, user: SafeUser): Promise<Cart> {
+    const { cartId, productId, quantity } = removeFromCartDto;
+
+    const cart = await this.cartModel.findOne({ cartId });
+    if (!cart || (user && cart.userId?.toString() !== user?._id?.toString())) {
+      throw new NotFoundException('Cart not found');
+    }
+
+    cart.items = cart.items.reduce((acc, item) => {
+      if (item.product._id?.toString() === productId) {
+        // Case: remove completely if quantity <= requested remove quantity
+        if (item.quantity <= quantity) {
+          cart.totalQuantity -= quantity;
+          return acc; // skip adding → removes item
+        }
+        // Case: just decrement
+        item.quantity -= quantity;
+        cart.totalQuantity -= quantity;
+      }
+      acc.push(item);
+      return acc;
+    }, [] as any);
+
+    const updatedCart = await cart.save();
+    const populatedUpdatedCart = await updatedCart.populate({
+      path: 'items.product',
+      model: Product.name,
+    });
+
+    return populatedUpdatedCart.toObject();
   }
 
   private generateCartId() {

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { Address } from 'src/address/schema/address.schema';
 import { User } from 'src/auth/schema/user.schema';
 import { Product } from 'src/product/schema/product.schema';
 
@@ -32,6 +33,9 @@ export class Cart {
 
   @Prop({ type: Boolean, default: true })
   isActive?: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: Address.name })
+  shippingAddress?: Types.ObjectId;
 }
 
 export const CartSchema = SchemaFactory.createForClass(Cart);

@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
 import { Cart } from './schema/cart.schema';
 import { AddToCartDto } from './dto/add-to-cart.dto';
@@ -7,6 +19,7 @@ import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 import { SafeUser } from 'src/auth/auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RemoveFromCartDto } from './dto/remove-from-cart.dto';
+import { UpdateShippingAddressDto } from './dto/update-shipping-address';
 
 @Controller('cart')
 export class CartController {
@@ -37,5 +50,15 @@ export class CartController {
   @Get(':id')
   getCartById(@Param('id') cartId: string) {
     return this.cartService.getCartById(cartId);
+  }
+
+  @Patch(':id/address')
+  @UseGuards(AuthGuard('jwt'))
+  updateShippingAddress(
+    @Param('id') cartId: string,
+    @Body() updateShippingAddress: UpdateShippingAddressDto,
+    @CurrentUser() user: SafeUser,
+  ) {
+    return this.cartService.updateShippingAddress(cartId, updateShippingAddress, user);
   }
 }

@@ -4,13 +4,17 @@ import { Cart, CartDocument } from './schema/cart.schema';
 import { Model, Types } from 'mongoose';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import * as crypto from 'crypto';
-import { Product } from 'src/product/schema/product.schema';
 import { SafeUser } from 'src/auth/auth.service';
 import { RemoveFromCartDto } from './dto/remove-from-cart.dto';
+import { UpdateShippingAddressDto } from './dto/update-shipping-address';
+import { Address, AddressDocument } from 'src/address/schema/address.schema';
 
 @Injectable()
 export class CartService {
-  constructor(@InjectModel(Cart.name) private readonly cartModel: Model<CartDocument>) {}
+  constructor(
+    @InjectModel(Cart.name) private readonly cartModel: Model<CartDocument>,
+    @InjectModel(Address.name) private readonly addressModel: Model<AddressDocument>,
+  ) {}
 
   // Add to Cart
   async addToCart(addToCartDto: AddToCartDto): Promise<Cart> {
@@ -27,10 +31,7 @@ export class CartService {
           cart.items.push({ product: new Types.ObjectId(productId), quantity });
         }
         cart.totalQuantity += quantity;
-        return (await cart.save()).populate({
-          path: 'items.product',
-          model: Product.name,
-        });
+        return (await cart.save()).populate(['items.product', 'shippingAddress']);
       }
     }
     // Create new cart if not found or no cartId provided
@@ -39,17 +40,13 @@ export class CartService {
       items: [{ product: new Types.ObjectId(productId), quantity }],
       totalQuantity: quantity,
     });
-    return (await newCart.save()).populate({
-      path: 'items.product',
-      model: Product.name,
-    });
+    return (await newCart.save()).populate(['items.product', 'shippingAddress']);
   }
 
   // Add to cart for logged-in user with anonymous cart merge
   async addToCartForUser(addToCartDto: AddToCartDto, user: SafeUser): Promise<Cart> {
     const { productId, quantity = 1, cartId } = addToCartDto;
 
-    // Explicit type: CartDocument | null
     let userCart: CartDocument | null = await this.cartModel.findOne({ userId: user._id, isActive: true });
     let anonymousCart: CartDocument | null = null;
 
@@ -57,7 +54,6 @@ export class CartService {
       anonymousCart = await this.cartModel.findOne({ cartId, isActive: true });
     }
 
-    // Merge anonymous cart and user cart if both exists and differenct.
     if (userCart && anonymousCart && !userCart._id.equals(anonymousCart._id)) {
       for (const anonItem of anonymousCart.items) {
         const existingItem = userCart.items.find((item) => item.product.toString() === anonItem.product.toString());
@@ -70,18 +66,15 @@ export class CartService {
 
         userCart.totalQuantity += anonItem.quantity;
       }
-      // Deactivate anonymous cart
       anonymousCart.isActive = false;
       await anonymousCart.save();
     }
 
-    // If user cart is not present and anonymous cart is present, associate anonymous cart to user
     if (!userCart && anonymousCart) {
       anonymousCart.userId = user._id;
       userCart = anonymousCart;
     }
 
-    // If neither user cart not anonymous cart is present, create new cart and associate with user
     if (!userCart) {
       userCart = new this.cartModel({
         cartId: this.generateCartId(),
@@ -91,15 +84,11 @@ export class CartService {
       });
 
       const savedCart = await userCart.save();
-      await savedCart.populate({
-        path: 'items.product',
-        model: Product.name,
-      });
+      await savedCart.populate(['items.product', 'shippingAddress']);
 
       return savedCart.toObject();
     }
 
-    // If only user cart is present, add item is not already exists or else increase quantity
     const existingItem = userCart.items.find((item) => item.product.toString() === productId);
 
     if (existingItem) {
@@ -110,22 +99,13 @@ export class CartService {
     userCart.totalQuantity += quantity;
 
     const savedCart = await userCart.save();
-    await savedCart.populate({
-      path: 'items.product',
-      model: Product.name,
-    });
+    await savedCart.populate(['items.product', 'shippingAddress']);
     return savedCart.toObject();
   }
 
   // Get Cart By id
   async getCartById(cartId: string): Promise<Cart> {
-    const cart = await this.cartModel
-      .findOne({ cartId })
-      .populate({
-        path: 'items.product',
-        model: Product.name,
-      })
-      .lean();
+    const cart = await this.cartModel.findOne({ cartId }).populate(['items.product', 'shippingAddress']).lean();
     if (!cart) {
       throw new NotFoundException(`Cart with id: ${cartId} not found!`);
     }
@@ -139,24 +119,17 @@ export class CartService {
     try {
       let userCart = await this.cartModel
         .findOne({ userId: user._id, isActive: true })
-        .populate({
-          path: 'items.product',
-          model: Product.name,
-        })
+        .populate(['items.product', 'shippingAddress'])
         .session(session);
       let anonymousCart: CartDocument | null = null;
 
       if (cartId) {
         anonymousCart = await this.cartModel
           .findOne({ cartId, isActive: true })
-          .populate({
-            path: 'items.product',
-            model: Product.name,
-          })
+          .populate(['items.product', 'shippingAddress'])
           .session(session);
       }
 
-      // Case 1: Merge anonymous cart into user cart
       if (userCart && anonymousCart && !userCart._id.equals(anonymousCart._id)) {
         anonymousCart.items?.forEach((anonItem) => {
           const existingItem = userCart.items?.find(
@@ -178,7 +151,6 @@ export class CartService {
         return userCart.toObject();
       }
 
-      // Case 2: No userCart but anonymousCart exists → assign it to the user
       if (!userCart && anonymousCart) {
         anonymousCart.userId = user._id;
         await anonymousCart.save({ session });
@@ -187,13 +159,11 @@ export class CartService {
         return anonymousCart.toObject();
       }
 
-      // Case 3: Only userCart exists
       if (userCart) {
         await session.commitTransaction();
         return userCart.toObject();
       }
 
-      // Case 4: No carts found
       await session.commitTransaction();
       return null;
     } catch (error) {
@@ -214,12 +184,10 @@ export class CartService {
 
     cart.items = cart.items.reduce((acc, item) => {
       if (item.product._id?.toString() === productId) {
-        // Case: remove completely if quantity <= requested remove quantity
         if (item.quantity <= quantity) {
           cart.totalQuantity -= quantity;
-          return acc; // skip adding → removes item
+          return acc;
         }
-        // Case: just decrement
         item.quantity -= quantity;
         cart.totalQuantity -= quantity;
       }
@@ -228,12 +196,34 @@ export class CartService {
     }, [] as any);
 
     const updatedCart = await cart.save();
-    const populatedUpdatedCart = await updatedCart.populate({
-      path: 'items.product',
-      model: Product.name,
-    });
+    const populatedUpdatedCart = await updatedCart.populate(['items.product', 'shippingAddress']);
 
     return populatedUpdatedCart.toObject();
+  }
+
+  async updateShippingAddress(
+    cartId: string,
+    updateShippingAddress: UpdateShippingAddressDto,
+    user: SafeUser,
+  ): Promise<Cart> {
+    const cart = await this.cartModel.findOne({ cartId, userId: user._id });
+    if (!cart) {
+      throw new NotFoundException(`Cart with id: ${cartId} not found!`);
+    }
+
+    const { saveForFuture, ...shippingAddressDetails } = updateShippingAddress;
+    const newAddress = new this.addressModel({
+      ...shippingAddressDetails,
+      userId: saveForFuture ? user._id : undefined,
+    });
+
+    const savedAddress = await newAddress.save();
+
+    cart.shippingAddress = savedAddress._id;
+    const savedCart = await cart.save();
+    const populatedSavedCart = await savedCart.populate(['items.product', 'shippingAddress']);
+
+    return populatedSavedCart.toObject();
   }
 
   private generateCartId() {

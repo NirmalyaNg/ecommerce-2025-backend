@@ -7,11 +7,16 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthStrategy } from './strategy/jwt-auth.strategy';
 import { RolesGuard } from './guard/role.guard';
 import { OptionalAuthGuard } from './guard/optional-auth.guard';
+import { AddressModule } from 'src/address/address.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]), JwtModule.register({})],
+  imports: [
+    AddressModule,
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    JwtModule.register({}),
+  ],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthStrategy, RolesGuard, OptionalAuthGuard],
-  exports: [OptionalAuthGuard]
+  exports: [OptionalAuthGuard],
 })
 export class AuthModule {}

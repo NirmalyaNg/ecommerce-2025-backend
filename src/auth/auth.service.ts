@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
+import { Address } from 'src/address/schema/address.schema';
 
 export type SafeUser = Pick<UserDocument, '_id' | 'email' | 'username' | 'role'>;
 
@@ -37,6 +38,7 @@ export type JwtPayload = {
 export class AuthService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Address.name) private readonly addressModel: Model<Address>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -157,6 +159,12 @@ export class AuthService {
       role: existingUser.role,
       username: existingUser.username,
     };
+  }
+
+  // Get saved addresses
+  async getSavedAddress(user: SafeUser): Promise<Address[]> {
+    const savedAddresses = await this.addressModel.find({ userId: user._id }).lean();
+    return savedAddresses;
   }
 
   private hashPassword(password: string): Promise<string> {

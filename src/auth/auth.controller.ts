@@ -8,6 +8,7 @@ import { UserRole } from './schema/user.schema';
 import { RolesGuard } from './guard/role.guard';
 import { CurrentUser } from './decorator/current-user.decorator';
 import { CookieOptions, Request, Response } from 'express';
+import { Address } from 'src/address/schema/address.schema';
 
 @Controller('auth')
 export class AuthController {
@@ -69,6 +70,12 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   getProfile(@CurrentUser() user: SafeUser): SafeUser {
     return user;
+  }
+
+  @Get('user/address')
+  @UseGuards(AuthGuard('jwt'))
+  getSavedAddress(@CurrentUser() user: SafeUser): Promise<Address[]> {
+    return this.authService.getSavedAddress(user);
   }
 
   private getCookieOptions(): CookieOptions {

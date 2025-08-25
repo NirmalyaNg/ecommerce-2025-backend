@@ -206,19 +206,33 @@ export class CartService {
     updateShippingAddress: UpdateShippingAddressDto,
     user: SafeUser,
   ): Promise<Cart> {
+    // Check if cart is associated to user
     const cart = await this.cartModel.findOne({ cartId, userId: user._id });
     if (!cart) {
       throw new NotFoundException(`Cart with id: ${cartId} not found!`);
     }
 
     const { saveForFuture, ...shippingAddressDetails } = updateShippingAddress;
-    const newAddress = new this.addressModel({
-      ...shippingAddressDetails,
-      userId: saveForFuture ? user._id : undefined,
-    });
 
-    const savedAddress = await newAddress.save();
+    let savedAddress;
 
+    // If cart already has a shipping address, update it with latest changes
+    if (cart.shippingAddress) {
+      const updates = {
+        ...shippingAddressDetails,
+      };
+      if (saveForFuture) {
+        updates['userId'] = user._id;
+      }
+      savedAddress = await this.addressModel.findByIdAndUpdate(cart.shippingAddress, { $set: updates }, { new: true });
+    } else {
+      // Create new shipping address and associate it with cart
+      const newAddress = new this.addressModel({
+        ...shippingAddressDetails,
+        userId: saveForFuture ? user._id : undefined,
+      });
+      savedAddress = await newAddress.save();
+    }
     cart.shippingAddress = savedAddress._id;
     const savedCart = await cart.save();
     const populatedSavedCart = await savedCart.populate(['items.product', 'shippingAddress']);
